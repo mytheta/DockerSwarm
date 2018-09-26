@@ -17,7 +17,7 @@
 * worker ×3
 
 ## docker-compose.ymlを書いて立ち上げる
-ここを参照
+[ここ](https://github.com/mytheta/DockerSwarm/blob/master/docker-compose.yml)を参照
 
 ```
 docker-compose up -d
@@ -39,7 +39,7 @@ CONTAINER ID        IMAGE                    COMMAND                  CREATED   
 クラスタを管理する役割を担うmanagerの設定を行います．
 ホストからmanagerコンテナに対して`docker swarn init`をして，`Swarn`のmanagerに設定します．
 ```
- ~/Documents/Docker ⮀ docker container exec -it manager docker swarm init
+$ docker container exec -it manager docker swarm init
 Swarm initialized: current node (p03f5rr1mbcxgsubls54vwiec) is now a manager.
 
 To add a worker to this swarm, run the following command:
@@ -119,3 +119,56 @@ Serviceとは，公式リファレンスによると
 ん．．
 コンテナをどう制御するかという単位ぐらいに捉えております．
 より理解していくために，`Service`を実際に作っていきます．
+イメージには，`registry`コンテナに`push`してある`registry:5000/yutsuki/echo:latest`を使います．`Service`は`manager`コンテナ内から`docker service create`で行います．
+
+```
+$ docker container exec -it manager \
+> docker service create --replicas 1 --publish 8000:8080 --name echo registry:5000/yutsuki/echo:latest
+k4raze392hep95aezt6ej8m23
+overall progress: 1 out of 1 tasks
+1/1: running   [==================================================>]
+verify: Service converged
+```
+
+実際に立ち上がってるか見てみます．
+```
+$ docker container exec -it manager docker service ls
+ID                  NAME                MODE                REPLICAS            IMAGE                               PORTS
+k4raze392hep        echo                replicated          1/1                 registry:5000/yutsuki/echo:latest   *:8000->8080/tcp
+```
+一つ作成されていますね．`Service`は，レプリカ(コンテナの複製？)の数を制御できます．複数のノードをまたいでコンテナの数を複製できるため，スケールアウトする際に役立ちます．6個レプリカを作ってみます．
+```
+$ docker container exec -it manager docker service scale echo=6
+echo scaled to 6
+overall progress: 6 out of 6 tasks
+1/6: running   [==================================================>]
+2/6: running   [==================================================>]
+3/6: running   [==================================================>]
+4/6: running   [==================================================>]
+5/6: running   [==================================================>]
+6/6: running   [==================================================>]
+verify: Service converged
+```
+確認してみます．
+
+```
+$ docker container exec -it manager docker service ps echo | grep Running
+finsmpqym219        echo.1              registry:5000/yutsuki/echo:latest   7f1d05c3fb9e        Running             Running 5 minutes ago
+d6pga7qdjej2        echo.2              registry:5000/yutsuki/echo:latest   70f38edc0918        Running             Running about a minute ago
+l1a84dhqvr05        echo.3              registry:5000/yutsuki/echo:latest   7f1d05c3fb9e        Running             Running 2 minutes ago
+z8rtde8f9m58        echo.4              registry:5000/yutsuki/echo:latest   1951cabcf225        Running             Running about a minute ago
+umejsy44yk4t        echo.5              registry:5000/yutsuki/echo:latest   87b56e609082        Running             Running about a minute ago
+blh595dbewu5        echo.6              registry:5000/yutsuki/echo:latest   70f38edc0918        Running             Running about a minute ago
+```
+
+6個の`echo`コンテナが実行されていますね．`NODE`の項目をみてみると，`Service`によって`Swarm`クラスタのノードに分散して配置されていることがわかります．
+### 具体的にみてみます．
+`echo1``echo3`の`7f1d05c3fb9e`のノードは，`worker01`,
+`echo2``echo6`の`70f38edc0918`は，`worker03`,`echo4`の`1951cabcf225`は，`manager`, `echo5`の`87b56e609082 `は，`worker02`という対応となっています．
+`manager`も実行されるんですね．なんとなく，`Service`でレプリカ数を制御できることがわかりました．
+
+## Serviceの削除
+```
+$ docker container exec -it manager docker service rm echo
+```
+デプロイした`service`は，`docker service rm サービス名`で削除できます．
