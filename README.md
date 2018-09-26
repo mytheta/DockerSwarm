@@ -173,3 +173,66 @@ blh595dbewu5        echo.6              registry:5000/yutsuki/echo:latest   70f3
 $ docker container exec -it manager docker service rm echo
 ```
 デプロイした`service`は，`docker service rm サービス名`で削除できます．
+
+## Stack
+次に，`Stack`をやっていきます．  
+ここら辺で，書くのがつらくなってきました．．頑張ります．  
+### Stackについて
+`Stack`は複数の`Service`をグルーピングした単位であり，アプリケーションの全体の構成を定義します． `Stack`は，`Service`で解決できない問題を解決します．一つのアプリケーションイメージしか扱うことができなかった`Service`に対して，`Stack`は，複数の`Service`を扱うことができます．  
+そしては，`Stack`によってデプロイされる`Service`群は`overlay`ネットワークに所属します．
+
+## やること
+`nginx`と`api`の二つの`Service`群の`Stack`をデプロイする．
+
+## ch03-webapi.ymlを書く
+Stackの構成を`ch03-webapi.yml`に書いていきます．
+[ここ](https://github.com/mytheta/DockerSwarm/blob/master/stack/ch03-webapi.yml)を参照
+
+### overlayネットワークの作成
+まず，`nginx`と`api`の`Service`が同一の`overlay`ネットワークに所属させる必要があります．
+ ~~`Stack`はなにも設定しなければ，`Stack`の数だけ`overlay`ネットワークが作成されてしまいます．~~
+```
+docker container exec -it manager docker network create --driver=overlay --attachable ch03
+av5rc5ua81sdrxztjvlyre06e
+```
+では，デプロイします．
+```
+docker container exec -it manager docker stack deploy -c /stack/ch03-webapi.yml echo
+Creating service echo_nginx
+Creating service echo_api
+```
+`echo`スタックの`Service`一覧をみてみます．
+```
+docker container exec -it manager docker stack services echo
+ID                  NAME                MODE                REPLICAS            IMAGE                               PORTS
+sasttmtcxinj        echo_nginx          replicated          3/3                 gihyodocker/nginx-proxy:latest
+vftzjxzscfw2        echo_api            replicated          3/3                 registry:5000/yutsuki/echo:latest
+```
+無事サービスができてますね．
+続いて，デプロイされたコンテナを確認します．
+
+```
+docker container exec -it manager docker stack ps echo
+ID                  NAME                IMAGE                               NODE                DESIRED STATE       CURRENT STATE               ERROR               PORTS
+cl82joavweho        echo_api.1          registry:5000/yutsuki/echo:latest   7f1d05c3fb9e        Running             Running about an hour ago
+nuaw9urce0mb        echo_nginx.1        gihyodocker/nginx-proxy:latest      87b56e609082        Running             Running about an hour ago
+bxp8t35dc3b1        echo_api.2          registry:5000/yutsuki/echo:latest   87b56e609082        Running             Running about an hour ago
+igs9684srq5n        echo_nginx.2        gihyodocker/nginx-proxy:latest      70f38edc0918        Running             Running about an hour ago
+tamu1kt2ndnh        echo_api.3          registry:5000/yutsuki/echo:latest   70f38edc0918        Running             Running about an hour ago
+6rcb1ez1c7mq        echo_nginx.3        gihyodocker/nginx-proxy:latest      7f1d05c3fb9e        Running             Running about an hour ago
+```
+これを，可視化してみます．
+`visualizer.yml`を作成して，`Stack`としてデプロイします．
+
+```
+$ docker container exec -it manager docker stack deploy -c /stack/visualizer.yml visualizer
+Creating network visualizer_default
+Creating service visualizer_app
+```
+`http://localhost:9000/`でみてみましょう．
+![visualizer](https://github.com/mytheta/DockerSwarm/blob/master/visualizer.png)
+
+うまくできてますね．
+最初につくった`Service`で作ったレプリカの`echo`が6個,
+今作った`echo_nginx`と`echo_api`が三つずつありますね．
+あと，`visualizer`が一つですね．
