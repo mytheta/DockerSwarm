@@ -8,7 +8,7 @@
 
 ## Macに，複数のDockerホストを用意する．
 `Docker for Mac`では，インストールされる`Docker`は一つなので，色々して複数台用意します．  
-複数台用意する方法は，クラウドサービスだったり，`Docker Machine`を用いることでできそうです．とても大変です．
+複数台用意する方法は，クラウドサービスだったり，`Docker Machine`を用いることでできそうです．とても大変です．  
 なので，今回は一番手っ取り早くできそうな`Docker in Docker`(略して`dind`)という仕組みを用います．`dind`は，`Docker`ホストとして機能する`Docker`コンテナを複数個立てることができます．
 
 ## 作成するコンテナ
@@ -34,11 +34,11 @@ CONTAINER ID        IMAGE                    COMMAND                  CREATED   
 1951cabcf225        docker:18.05.0-ce-dind   "dockerd-entrypoint.…"   4 minutes ago       Up 4 minutes        2375/tcp, 3375/tcp, 0.0.0.0:9000->9000/tcp, 0.0.0.0:8000->80/tcp   manager
 052ac84438cb        registry:2.6             "/entrypoint.sh /etc…"   4 minutes ago       Up 4 minutes        0.0.0.0:5000->5000/tcp                                             registry
 ```
-立ち上がっていますね．
-ただ，このままでは，協調してクラスタとして動作はしていません．
-クラスタを管理する役割を担うmanagerの設定を行います．
-ホストからmanagerコンテナに対して`docker swarn init`をして，`Swarn`のmanagerに設定します．
-```
+立ち上がっていますね．  
+ただ，このままでは，協調してクラスタとして動作はしていません．  
+クラスタを管理する役割を担うmanagerの設定を行います．  
+ホストからmanagerコンテナに対して`docker swarn init`をして，`Swarn`のmanagerに設定します．  
+``` 
 $ docker container exec -it manager docker swarm init
 Swarm initialized: current node (p03f5rr1mbcxgsubls54vwiec) is now a manager.
 
@@ -48,10 +48,10 @@ To add a worker to this swarm, run the following command:
 
 To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
 ```
-`token`が発行されていますね．これは，`Swarn`クラスタの`worker`として登録するのに必要です．
-早速，`Swarn`クラスタに`worker01`,`worker02`,`worker03`を登録していきます．
-以下のように`worker02`,`worker03`にもコマンドを叩いてください．
-コンテナ同士は，`compose`で作成されているため，名前解決できますので，`manager:2377`に対して`join`トークンを使います．
+`token`が発行されていますね．これは，`Swarn`クラスタの`worker`として登録するのに必要です．  
+早速，`Swarn`クラスタに`worker01`,`worker02`,`worker03`を登録していきます．  
+以下のように`worker02`,`worker03`にもコマンドを叩いてください．  
+コンテナ同士は，`compose`で作成されているため，名前解決できますので，`manager:2377`に対して`join`トークンを使います．  
 
 ```
 $ docker container exec -it worker01 docker swarm join \
@@ -59,16 +59,16 @@ $ docker container exec -it worker01 docker swarm join \
 This node joined a swarm as a worker.
 ```
 
-続いて，Dockerレジストリにイメージをpushします．
-ここでは，`yutsuki/echo`のイメージを使います．
-その前にタグ付けを行います．
+続いて，Dockerレジストリにイメージをpushします．  
+ここでは，`yutsuki/echo`のイメージを使います．  
+その前にタグ付けを行います．  
 ```
 $ docker image tag yutsuki/echo:latest localhost:5000/yutsuki/echo:latest
  ```
  
-このようにタグ付けすることで，指定のレジストリにpushできます．
+このようにタグ付けすることで，指定のレジストリにpushできます．  
 
-registryコンテナにイメージをpush
+registryコンテナにイメージをpush  
 ```
  $ docker image push localhost:5000/yutsuki/echo:latest
 The push refers to repository [localhost:5000/yutsuki/echo]
@@ -84,8 +84,8 @@ ce6466f43b11: Pushed
 3b10514a95be: Pushed
 latest: digest: sha256:624945c796c629f049bcae1809cf4ebddb52cec1b0a91dfa80603948383e4cb9 size: 2417
 ```
-できていますね．
-では，workerコンテナがregistryコンテナからDockerイメージをpullできるか確認してみます．
+できていますね．  
+では，workerコンテナがregistryコンテナからDockerイメージをpullできるか確認してみます．  
 
 ```
  $ docker container exec -it worker01 docker image pull registry:5000/yutsuki/echo:latest
@@ -109,17 +109,17 @@ $ docker container exec -it worker01 docker image ls
 REPOSITORY                   TAG                 IMAGE ID            CREATED             SIZE
 registry:5000/yutsuki/echo   latest              7479f1250d86        39 minutes ago      750MB
 ```
-無事にできていますね．
-次は，`Service`の設定をしていきます．
+無事にできていますね．  
+次は，`Service`の設定をしていきます．  
 
 ## Service
-Serviceとは，公式リファレンスによると
+Serviceとは，公式リファレンスによると  
 > サービスは、 swarm 上でアプリケーション・コンテナをどのように実行するかの定義です。最も基本的なレベルのサービス定義とは、swarm 上でどのコンテナ・イメージを実行するか、そして、どのコマンドをコンテナで実行するかです。オーケストレーションの目的は「望ましい状態（desired state）」としてサービスを定義することです。つまり、いくつのコンテナをタスクとして実行するか、コンテナをデプロイする条件（constraint）を指します。
 
-ん．．
-コンテナをどう制御するかという単位ぐらいに捉えております．
-より理解していくために，`Service`を実際に作っていきます．
-イメージには，`registry`コンテナに`push`してある`registry:5000/yutsuki/echo:latest`を使います．`Service`は`manager`コンテナ内から`docker service create`で行います．
+ん．．  
+コンテナをどう制御するかという単位ぐらいに捉えております．  
+より理解していくために，`Service`を実際に作っていきます．  
+イメージには，`registry`コンテナに`push`してある`registry:5000/yutsuki/echo:latest`を使います．`Service`は`manager`コンテナ内から`docker service create`で行います．  
 
 ```
 $ docker container exec -it manager \
@@ -161,12 +161,13 @@ umejsy44yk4t        echo.5              registry:5000/yutsuki/echo:latest   87b5
 blh595dbewu5        echo.6              registry:5000/yutsuki/echo:latest   70f38edc0918        Running             Running about a minute ago
 ```
 
-6個の`echo`コンテナが実行されていますね．`NODE`の項目をみてみると，`Service`によって`Swarm`クラスタのノードに分散して配置されていることがわかります．
+6個の`echo`コンテナが実行されていますね．  
+`NODE`の項目をみてみると，`Service`によって`Swarm`クラスタのノードに分散して配置されていることがわかります．  
 ### 具体的にみてみます．
 `echo1``echo3`の`7f1d05c3fb9e`のノードは，`worker01`,
-`echo2``echo6`の`70f38edc0918`は，`worker03`,`echo4`の`1951cabcf225`は，`manager`, `echo5`の`87b56e609082 `は，`worker02`という対応となっています．
-`manager`も実行されるんですね．なんとなく，`Service`でレプリカ数を制御できることがわかりました．
-
+`echo2``echo6`の`70f38edc0918`は，`worker03`,`echo4`の`1951cabcf225`は，`manager`, `echo5`の`87b56e609082 `は，`worker02`という対応となっています．  
+`manager`も実行されるんですね．なんとなく，`Service`でレプリカ数を制御できることがわかりました．  
+ 
 ## Serviceの削除
 ```
 $ docker container exec -it manager docker service rm echo
