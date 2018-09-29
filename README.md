@@ -194,13 +194,13 @@ Stackの構成を`ch03-webapi.yml`に書いていきます．
 ~~`Stack`はなにも設定しなければ，`Stack`の数だけ`overlay`ネットワークが作成されてしまいます．~~
 
 ```
-docker container exec -it manager docker network create --driver=overlay --attachable ch03
+$ docker container exec -it manager docker network create --driver=overlay --attachable ch03
 av5rc5ua81sdrxztjvlyre06e
 ```
 
 では，デプロイします．
 ```
-docker container exec -it manager docker stack deploy -c /stack/ch03-webapi.yml echo
+$ docker container exec -it manager docker stack deploy -c /stack/ch03-webapi.yml echo
 Creating service echo_nginx
 Creating service echo_api
 ```
@@ -217,7 +217,7 @@ vftzjxzscfw2        echo_api            replicated          3/3                 
 続いて，デプロイされたコンテナを確認します．
 
 ```
-docker container exec -it manager docker stack ps echo
+$ docker container exec -it manager docker stack ps echo
 ID                  NAME                IMAGE                               NODE                DESIRED STATE       CURRENT STATE               ERROR               PORTS
 cl82joavweho        echo_api.1          registry:5000/yutsuki/echo:latest   7f1d05c3fb9e        Running             Running about an hour ago
 nuaw9urce0mb        echo_nginx.1        gihyodocker/nginx-proxy:latest      87b56e609082        Running             Running about an hour ago
