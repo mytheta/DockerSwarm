@@ -172,6 +172,7 @@ blh595dbewu5        echo.6              registry:5000/yutsuki/echo:latest   70f3
 ```
 $ docker container exec -it manager docker service rm echo
 ```
+
 デプロイした`service`は，`docker service rm サービス名`で削除できます．
 
 ## Stack
@@ -189,19 +190,23 @@ Stackの構成を`ch03-webapi.yml`に書いていきます．
 [ここ](https://github.com/mytheta/DockerSwarm/blob/master/stack/ch03-webapi.yml)を参照
 
 ### overlayネットワークの作成
-まず，`nginx`と`api`の`Service`が同一の`overlay`ネットワークに所属させる必要があります．
- ~~`Stack`はなにも設定しなければ，`Stack`の数だけ`overlay`ネットワークが作成されてしまいます．~~
-```
-docker container exec -it manager docker network create --driver=overlay --attachable ch03
+まず，`nginx`と`api`の`Service`が同一の`overlay`ネットワークに所属させる必要があります．
+~~`Stack`はなにも設定しなければ，`Stack`の数だけ`overlay`ネットワークが作成されてしまいます．~~
+
+```
+$ docker container exec -it manager docker network create --driver=overlay --attachable ch03
 av5rc5ua81sdrxztjvlyre06e
 ```
+
 では，デプロイします．
 ```
-docker container exec -it manager docker stack deploy -c /stack/ch03-webapi.yml echo
+$ docker container exec -it manager docker stack deploy -c /stack/ch03-webapi.yml echo
 Creating service echo_nginx
 Creating service echo_api
 ```
+
 `echo`スタックの`Service`一覧をみてみます．
+
 ```
 docker container exec -it manager docker stack services echo
 ID                  NAME                MODE                REPLICAS            IMAGE                               PORTS
@@ -212,7 +217,7 @@ vftzjxzscfw2        echo_api            replicated          3/3                 
 続いて，デプロイされたコンテナを確認します．
 
 ```
-docker container exec -it manager docker stack ps echo
+$ docker container exec -it manager docker stack ps echo
 ID                  NAME                IMAGE                               NODE                DESIRED STATE       CURRENT STATE               ERROR               PORTS
 cl82joavweho        echo_api.1          registry:5000/yutsuki/echo:latest   7f1d05c3fb9e        Running             Running about an hour ago
 nuaw9urce0mb        echo_nginx.1        gihyodocker/nginx-proxy:latest      87b56e609082        Running             Running about an hour ago
